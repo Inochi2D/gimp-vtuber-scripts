@@ -8,24 +8,27 @@
   (define (process-layer layer parent-id)
     (if (should-process-layer layer)
         (let* ((name (car (gimp-item-get-name layer)))
-               (position (get-position-in-parent layer parent-id))
+               (position (get-layer-position layer parent-id))
                (new-group (car (gimp-layer-group-new image))))
           (gimp-item-set-name layer (string-append "#" name))
           (gimp-item-set-name new-group name)
           (gimp-image-insert-layer image new-group parent-id position)
           (gimp-image-reorder-item image layer new-group 0))))
 
-  (define (get-position-in-parent layer parent-id)
-    (let* ((siblings (if (= parent-id 0)
-                         (vector->list (cadr (gimp-image-get-layers image)))
-                         (vector->list (cadr (gimp-item-get-children parent-id)))))
-           (position 0))
-      (for-each (lambda (sibling)
-                  (if (= sibling layer)
-                      (begin)
-                      (set! position (+ position 1))))
-                siblings)
-      position))
+  ;; Auxiliary function to get the position of a layer within its parent
+  (define (get-layer-position-aux layer siblings position)
+    (if (null? siblings)
+        position
+        (if (= (car siblings) layer)
+            position
+            (get-layer-position-aux layer (cdr siblings) (+ position 1)))))
+
+  ;; Function to get the position of a layer in its parent
+  (define (get-layer-position layer parent-id)
+    (let ((siblings (if (= parent-id 0)
+                        (vector->list (cadr (gimp-image-get-layers image)))
+                        (vector->list (cadr (gimp-item-get-children parent-id))))))
+      (get-layer-position-aux layer siblings 0)))
 
   (define (process-layers layers parent-id)
     (for-each (lambda (layer)
